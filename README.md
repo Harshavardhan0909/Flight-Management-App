@@ -1,79 +1,322 @@
-# FlightDeck Manager
+# ✈️ FlightDeck Manager
 
-A responsive flight management app built with Next.js App Router, Supabase, Zustand, Tailwind CSS, and `next-pwa`.
+A modern and responsive flight management platform built with **Next.js App Router**, **Supabase**, **Zustand**, **Tailwind CSS**, and **next-pwa**.
+The application provides a complete flight booking experience with realtime seat selection, secure booking workflows, booking management, and Progressive Web App (PWA) support.
 
-## Features
+---
 
-- Search flights by route, date, and passenger count.
-- Compare results with price, duration, aircraft, and class options.
-- Interactive realtime seat map with first, business, and economy zones.
-- Supabase RPC booking flow that locks seats before creating a booking.
-- My Bookings page with rescheduling, cancellation, status badges, and confirmation dialogs.
-- DB-level cancellation guard blocking cancellations within 2 hours of departure.
-- Zustand stores with persisted booking progress and sensitive passport numbers excluded.
-- Installable PWA manifest, offline fallback, runtime caching for results, bookings, and static assets.
+## 🚀 Features
 
-## Local Setup
+### 🔍 Flight Search & Comparison
 
-1. Install dependencies:
+* Search flights by:
+
+  * Route
+  * Departure date
+  * Passenger count
+* Compare flights based on:
+
+  * Price
+  * Duration
+  * Aircraft type
+  * Travel class
+
+### 💺 Realtime Seat Selection
+
+* Interactive seat map with:
+
+  * First Class
+  * Business Class
+  * Economy Class
+* Live seat availability updates
+* Optimistic UI seat locking
+
+### 📦 Secure Booking Flow
+
+* Supabase RPC-powered transactional booking system
+* Atomic seat reservation using database row locking (`FOR UPDATE`)
+* Passenger management during booking flow
+* Protected against double booking issues
+
+### 📋 Booking Management
+
+* View all bookings in **My Bookings**
+* Reschedule bookings
+* Cancel bookings
+* Booking status badges
+* Confirmation dialogs for critical actions
+
+### 🔒 Advanced Security & Validation
+
+* Database-level cancellation protection
+* Prevents cancellation within 2 hours of departure
+* Row-Level Security (RLS) enabled on all tables
+* Auth-scoped access for user bookings and passenger data
+
+### ⚡ State Management
+
+* Zustand-powered global stores
+* Persisted booking progress
+* Sensitive passport numbers excluded from local storage persistence
+
+### 📱 Progressive Web App (PWA)
+
+* Installable application
+* Offline support
+* Runtime caching
+* Optimized Lighthouse PWA performance
+
+---
+
+# 🛠️ Tech Stack
+
+## Frontend
+
+* Next.js App Router
+* React
+* Tailwind CSS
+* Zustand
+
+## Backend & Database
+
+* Supabase
+* PostgreSQL
+* Supabase RPC Functions
+* Row Level Security (RLS)
+
+## PWA & Deployment
+
+* next-pwa
+* Vercel
+
+---
+
+# 📂 Project Structure
+
+```bash
+app/
+components/
+store/
+supabase/
+public/
+```
+
+---
+
+# ⚙️ Local Setup
+
+## 1️⃣ Install Dependencies
 
 ```bash
 npm install
 ```
 
-2. Copy `.env.example` to `.env.local` and fill in your Supabase values:
+---
 
-```bash
+## 2️⃣ Configure Environment Variables
+
+Create a `.env.local` file:
+
+```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-for-seeding-only
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
-3. Apply the SQL in `supabase/migrations` to your Supabase project.
+---
 
-4. Seed flights, seats, and the demo account:
+## 3️⃣ Run Database Migrations
+
+Apply the SQL migrations inside:
+
+```bash
+supabase/migrations/
+```
+
+Main schema file:
+
+```bash
+202605190001_flightdeck_schema.sql
+```
+
+---
+
+## 4️⃣ Seed Demo Data
 
 ```bash
 npm run seed
 ```
 
-Demo credentials:
+### Demo Credentials
 
-- Email: `demo@flightdeck.test`
-- Password: `FlightDeck123!`
+```txt
+Email: demo@flightdeck.test
+Password: FlightDeck123!
+```
 
-5. Start the app:
+---
+
+## 5️⃣ Start Development Server
 
 ```bash
 npm run dev
 ```
 
-## Supabase Notes
+---
 
-All required tables are created in `supabase/migrations/202605190001_flightdeck_schema.sql`. RLS is enabled on every table. Flights and seats are readable for search and realtime seat maps, while bookings, passengers, and reschedules are scoped to `auth.uid()`.
+# 🗄️ Database & Security
 
-Seat reservation uses `reserve_seat_and_create_booking`, which locks the selected seat row with `for update`, verifies availability, creates the booking and passenger rows, and marks the seat unavailable in one transaction. Cancellation uses `cancel_booking`, and rescheduling uses `reschedule_booking`.
+## 🔐 Row-Level Security (RLS)
 
-The cancellation rule is enforced by the `bookings_reject_late_cancellation` trigger, so attempts to cancel within 2 hours of departure fail even if called outside the app.
+RLS is enabled across all tables:
 
-## Zustand Store Structure
+* Flights
+* Seats
+* Bookings
+* Passengers
+* Reschedules
 
-`store/useFlightStore.ts` keeps the active search query, selected flight, selected seat, current booking step, passenger draft data, and optimistic seat selection. Its `partialize` removes passport numbers from localStorage.
+Users can only access their own booking-related data using `auth.uid()`.
 
-`store/useUserStore.ts` keeps the Supabase session and cached bookings for the UI. Persistence is intentionally narrow so only token material is stored.
+---
 
-## PWA
+## 💺 Seat Reservation Flow
 
-`next.config.mjs` configures `next-pwa` with:
+The `reserve_seat_and_create_booking` RPC function:
 
-- `StaleWhileRevalidate` for flight search results.
-- `StaleWhileRevalidate` for My Bookings.
-- `CacheFirst` for Next.js static assets.
-- `/offline` as the document fallback.
+* Locks selected seat rows using `FOR UPDATE`
+* Validates seat availability
+* Creates booking and passenger records
+* Updates seat availability atomically
 
-The manifest is in `public/manifest.json` with 192x192 and 512x512 icons. A Lighthouse PWA screenshot can be added after running an audit against your deployed Vercel URL.
+This prevents:
 
-## Deployment
+* Race conditions
+* Duplicate reservations
+* Inconsistent bookings
 
-Deploy to Vercel with the same Supabase environment variables. The production URL was not created from this local workspace; add it here after deployment.
+---
+
+## ❌ Cancellation Rules
+
+The `bookings_reject_late_cancellation` trigger prevents booking cancellations within:
+
+```txt
+2 hours of departure
+```
+
+Validation occurs directly at the database layer for stronger security.
+
+---
+
+# 🧠 Zustand Store Architecture
+
+## `useFlightStore.ts`
+
+Manages:
+
+* Search queries
+* Selected flight
+* Selected seat
+* Passenger draft data
+* Booking progress
+* Optimistic seat selection
+
+Sensitive fields like passport numbers are excluded from persistence.
+
+---
+
+## `useUserStore.ts`
+
+Manages:
+
+* Supabase session
+* Cached user bookings
+* Lightweight persisted authentication state
+
+---
+
+# 📱 PWA Configuration
+
+Configured using `next-pwa`.
+
+### Caching Strategies
+
+* `StaleWhileRevalidate`
+
+  * Flight search results
+  * Booking pages
+
+* `CacheFirst`
+
+  * Static Next.js assets
+
+### Offline Support
+
+* `/offline` fallback page
+
+### Manifest
+
+Located in:
+
+```bash
+public/manifest.json
+```
+
+Includes:
+
+* 192x192 icon
+* 512x512 icon
+
+---
+
+# 🚀 Deployment
+
+Deploy easily using:
+
+* Vercel
+* Supabase
+
+Configure the same environment variables in your deployment platform.
+
+---
+
+# 📸 Screenshots
+
+<img width="1810" height="892" alt="image" src="https://github.com/user-attachments/assets/49455f2c-fc86-4256-8a6d-f83248fb4f14" />
+
+
+Examples:
+
+* Flight Search
+* Seat Selection
+* Booking Confirmation
+* My Bookings Dashboard
+* Mobile Responsive UI
+
+---
+
+# 🌟 Future Improvements
+
+* Multi-city bookings
+* Real-time flight status tracking
+* Payment gateway integration
+* Admin dashboard
+* AI-powered fare prediction
+* Email & SMS notifications
+
+---
+
+# 👨‍💻 Author
+
+**Harshavardhan Korlepara**
+
+* GitHub: https://github.com/Harshavardhan0909
+* LinkedIn: https://linkedin.com/in/k-harshavardhan
+
+---
+
+# 📄 License
+
+This project is licensed under the MIT License.
